@@ -1,0 +1,40 @@
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# dependencies
+node_modules/
+
+# macOS
+.DS_Store
+
+# Node
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor
+.vscode/
+.idea/
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+
+# Android
+*.apk
+*.ap_
+*.aab
+
+# iOS
+*.ipa
+ios/Pods/
+ios/build/
+
+# Environment
+.env
+.env.local
+.env.*.local
