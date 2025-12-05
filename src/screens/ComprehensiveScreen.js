@@ -26,6 +26,17 @@ export default function ComprehensiveScreen() {
   const [progress, setProgress] = useState('');
   const [displayData, setDisplayData] = useState(null);
   const [showData, setShowData] = useState(false);
+  const logJson = (label, payload, previewCount = 3) => {
+    try {
+      const data =
+        Array.isArray(payload) && payload.length > previewCount
+          ? payload.slice(0, previewCount)
+          : payload;
+      console.log(`${label}:`, JSON.stringify(data, null, 2));
+    } catch {
+      console.log(label, payload);
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!startDate) {
@@ -102,6 +113,10 @@ export default function ComprehensiveScreen() {
         evaluationData,
         participantsData
       );
+      logJson('综合统计样本(前3)', comprehensiveStats);
+      console.log(
+        `巡护:${patrolData.length}条 评测:${evaluationData.length}条 活动参与:${participantsData.length}人 综合结果:${comprehensiveStats ? comprehensiveStats.length : 0}人`
+      );
 
       if (!comprehensiveStats || comprehensiveStats.length === 0) {
         Alert.alert('提示', '未获取到统计数据');
@@ -135,6 +150,7 @@ export default function ComprehensiveScreen() {
     }
 
     try {
+      logJson('准备导出综合统计(前3)', displayData);
       setProgress('正在导出Excel...');
       await excelExporter.exportComprehensiveStats(displayData, startDate);
       Alert.alert('成功', 'Excel文件已生成并准备分享');

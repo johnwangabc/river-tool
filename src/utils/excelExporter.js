@@ -3,6 +3,31 @@ import * as Sharing from 'expo-sharing';
 import XLSX from 'xlsx';
 import { format } from 'date-fns';
 
+// 将 Excel 单元格中的复杂类型转为可读字符串，避免出现 [object Object]
+const normalizeValue = (value) => {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) {
+    return value.map((v) => normalizeValue(v)).join('\n');
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  }
+  return value;
+};
+
+const normalizeRows = (rows) =>
+  rows.map((row) => {
+    const normalized = {};
+    Object.keys(row).forEach((key) => {
+      normalized[key] = normalizeValue(row[key]);
+    });
+    return normalized;
+  });
+
 export const excelExporter = {
   // 导出活动数据
   async exportActivities(activitiesData, targetDate) {
@@ -10,7 +35,7 @@ export const excelExporter = {
       const workbook = XLSX.utils.book_new();
 
       // 基本信息工作表
-      const basicInfoSheet = XLSX.utils.json_to_sheet(activitiesData);
+      const basicInfoSheet = XLSX.utils.json_to_sheet(normalizeRows(activitiesData));
       XLSX.utils.book_append_sheet(workbook, basicInfoSheet, '活动基本信息');
 
       // 生成文件
@@ -90,7 +115,7 @@ export const excelExporter = {
         所有河流名称: u.河流名称列表.join('\n'),
       }));
 
-      const userStatsSheet = XLSX.utils.json_to_sheet(userStatsForExport);
+      const userStatsSheet = XLSX.utils.json_to_sheet(normalizeRows(userStatsForExport));
       XLSX.utils.book_append_sheet(workbook, userStatsSheet, '用户发帖统计');
 
       // 数据概览工作表
@@ -108,7 +133,7 @@ export const excelExporter = {
         数据生成时间: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       }];
 
-      const overviewSheet = XLSX.utils.json_to_sheet(overview);
+      const overviewSheet = XLSX.utils.json_to_sheet(normalizeRows(overview));
       XLSX.utils.book_append_sheet(workbook, overviewSheet, '数据概览');
 
       // 生成文件
@@ -126,18 +151,27 @@ export const excelExporter = {
       const workbook = XLSX.utils.book_new();
 
       // 综合次数统计工作表
-      const statsSheet = XLSX.utils.json_to_sheet(statsData);
+      const statsSheet = XLSX.utils.json_to_sheet(normalizeRows(statsData));
       XLSX.utils.book_append_sheet(workbook, statsSheet, '综合次数统计');
 
       // 统计摘要
       const totalUsers = statsData.length;
-      const avgTotal = totalUsers > 0 ? (statsData.reduce((sum, u) => sum + u.总次数, 0) / totalUsers).toFixed(2) : 0;
-      const avgPatrol = totalUsers > 0 ? (statsData.reduce((sum, u) => sum + u.巡护次数, 0) / totalUsers).toFixed(2) : 0;
-      const avgEvaluation = totalUsers > 0 ? (statsData.reduce((sum, u) => sum + u.评测次数, 0) / totalUsers).toFixed(2) : 0;
-      const avgActivity = totalUsers > 0 ? (statsData.reduce((sum, u) => sum + u.活动次数, 0) / totalUsers).toFixed(2) : 0;
+      const totalPatrol = statsData.reduce((sum, u) => sum + (u.巡护次数 || 0), 0);
+      const totalEvaluation = statsData.reduce((sum, u) => sum + (u.评测次数 || 0), 0);
+      const totalActivity = statsData.reduce((sum, u) => sum + (u.活动次数 || 0), 0);
+      const totalOverall = statsData.reduce((sum, u) => sum + (u.总次数 || 0), 0);
+
+      const avgTotal = totalUsers > 0 ? (totalOverall / totalUsers).toFixed(2) : 0;
+      const avgPatrol = totalUsers > 0 ? (totalPatrol / totalUsers).toFixed(2) : 0;
+      const avgEvaluation = totalUsers > 0 ? (totalEvaluation / totalUsers).toFixed(2) : 0;
+      const avgActivity = totalUsers > 0 ? (totalActivity / totalUsers).toFixed(2) : 0;
 
       const summary = [{
         总人数: totalUsers,
+        总巡护次数: totalPatrol,
+        总评测次数: totalEvaluation,
+        总活动次数: totalActivity,
+        总计次数: totalOverall,
         平均总次数: avgTotal,
         平均巡护次数: avgPatrol,
         平均评测次数: avgEvaluation,
@@ -146,7 +180,7 @@ export const excelExporter = {
         最少总次数: totalUsers > 0 ? Math.min(...statsData.map(u => u.总次数)) : 0,
       }];
 
-      const summarySheet = XLSX.utils.json_to_sheet(summary);
+      const summarySheet = XLSX.utils.json_to_sheet(normalizeRows(summary));
       XLSX.utils.book_append_sheet(workbook, summarySheet, '统计摘要');
 
       // 生成文件

@@ -15,6 +15,7 @@ import {
   Title,
   Paragraph,
   Divider,
+  Chip,
 } from 'react-native-paper';
 import { storage } from '../utils/storage';
 
@@ -22,6 +23,7 @@ export default function SettingsScreen() {
   const [authToken, setAuthToken] = useState('');
   const [orgId, setOrgId] = useState('843');
   const [loading, setLoading] = useState(false);
+  const [tokenVisible, setTokenVisible] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -79,22 +81,53 @@ export default function SettingsScreen() {
     );
   };
 
+  const tokenLength = authToken.trim().length;
+  const hasToken = tokenLength > 0;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Card style={[styles.card, styles.heroCard]}>
+          <Card.Content>
+            <Text style={styles.heroEyebrow}>连接河道数据</Text>
+            <Title style={styles.heroTitle}>先配置令牌，再开始统计</Title>
+            <Paragraph style={styles.heroSubtitle}>
+              令牌与组织 ID 仅保存在本地设备，用于后续的 API 调用。
+            </Paragraph>
+            <View style={styles.heroChips}>
+              <Chip
+                icon="shield-check"
+                mode="outlined"
+                style={styles.heroChip}
+                selectedColor="#0c5d35"
+              >
+                本地安全存储
+              </Chip>
+              <Chip icon="database" mode="outlined" style={styles.heroChip}>
+                影响所有统计
+              </Chip>
+            </View>
+          </Card.Content>
+        </Card>
+
         <Card style={styles.card}>
           <Card.Content>
             <Title>API 配置</Title>
             <Paragraph style={styles.description}>
-              配置您的认证令牌以访问河流巡检API
+              认证令牌和组织 ID 会用于所有数据请求，请确保与后台环境一致。
             </Paragraph>
 
             <Divider style={styles.divider} />
 
-            <Text style={styles.label}>认证令牌 (Token) *</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>认证令牌 (Token) *</Text>
+              <Text style={styles.metaText}>
+                {hasToken ? `已填长度 ${tokenLength}` : '尚未填写'}
+              </Text>
+            </View>
             <TextInput
               mode="outlined"
               value={authToken}
@@ -102,14 +135,26 @@ export default function SettingsScreen() {
               placeholder="Bearer eyJ0eXAiOiJKV1QiLCJhbGc..."
               multiline
               numberOfLines={4}
-              style={styles.input}
+              secureTextEntry={!tokenVisible}
+              autoCapitalize="none"
+              style={[styles.input, styles.tokenInput]}
+              right={
+                <TextInput.Icon
+                  icon={tokenVisible ? 'eye-off' : 'eye'}
+                  onPress={() => setTokenVisible((v) => !v)}
+                  forceTextInputFocus={false}
+                />
+              }
             />
 
             <Text style={styles.hint}>
               格式: Bearer 后跟完整的JWT令牌
             </Text>
 
-            <Text style={styles.label}>组织ID</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>组织ID</Text>
+              <Text style={styles.metaText}>默认 843，可按需调整</Text>
+            </View>
             <TextInput
               mode="outlined"
               value={orgId}
@@ -127,18 +172,23 @@ export default function SettingsScreen() {
 
         <Card style={styles.card}>
           <Card.Content>
-            <Title>使用说明</Title>
+            <View style={styles.tipHeader}>
+              <Title>使用说明</Title>
+              <Chip mode="outlined" icon="information-outline" compact>
+                简短步骤
+              </Chip>
+            </View>
             <Paragraph style={styles.instructionText}>
-              1. 从浏览器开发者工具中获取认证令牌
+              1. 在浏览器/APP 调用接口时，复制 Authorization 请求头的完整值。
             </Paragraph>
             <Paragraph style={styles.instructionText}>
-              2. 完整复制 Authorization 请求头的值
+              2. 粘贴到上方令牌输入框，确认以“Bearer ”开头。
             </Paragraph>
             <Paragraph style={styles.instructionText}>
-              3. 粘贴到上方的认证令牌输入框
+              3. 根据需要调整组织 ID（默认 843），点击保存。
             </Paragraph>
             <Paragraph style={styles.instructionText}>
-              4. 点击保存设置
+              4. 若账号或环境切换，先清除设置再重新填写。
             </Paragraph>
           </Card.Content>
         </Card>
@@ -171,7 +221,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f1f3f6',
   },
   scrollContent: {
     padding: 16,
@@ -180,6 +230,36 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     elevation: 2,
   },
+  heroCard: {
+    backgroundColor: '#e8f3ff',
+    borderWidth: 1,
+    borderColor: '#cfe3ff',
+  },
+  heroEyebrow: {
+    color: '#0c5dce',
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontSize: 22,
+    marginBottom: 6,
+  },
+  heroSubtitle: {
+    color: '#335577',
+    lineHeight: 20,
+  },
+  heroChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 12,
+  },
+  heroChip: {
+    borderColor: '#cfe3ff',
+    backgroundColor: '#f5f9ff',
+    marginRight: 8,
+    marginBottom: 8,
+  },
   description: {
     marginTop: 8,
     color: '#666',
@@ -187,19 +267,31 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 16,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    marginBottom: 4,
+  },
   label: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginTop: 12,
-    marginBottom: 8,
   },
   input: {
     marginBottom: 4,
+  },
+  tokenInput: {
+    minHeight: 96,
   },
   hint: {
     fontSize: 12,
     color: '#666',
     marginBottom: 12,
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#466596',
   },
   instructionText: {
     marginVertical: 4,
@@ -215,5 +307,11 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     paddingVertical: 6,
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
 });

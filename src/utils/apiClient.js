@@ -65,7 +65,7 @@ export const api = {
   async getActivityDetail(activityId) {
     const response = await apiClient.get(`/portal/ums/active/info/${activityId}`, {
       params: {
-        pageSize: 10,
+        pageSize: 200,
         pageNum: 1,
       },
       requireAuth: true,

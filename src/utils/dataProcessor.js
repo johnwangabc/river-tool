@@ -1,29 +1,32 @@
-import { format, parse } from 'date-fns';
+import { format, parse, isValid } from 'date-fns';
 
 export const dataProcessor = {
   // 过滤指定日期及以后的活动
   filterActivitiesByDate(activities, targetDateStr) {
     try {
       const targetDate = parse(targetDateStr, 'yyyy-MM-dd', new Date());
+      const parseDateSafely = (dateStr) => {
+        if (!dateStr) return null;
+        const parsed = parse(dateStr, 'yyyy-MM-dd HH:mm:ss', new Date());
+        if (isValid(parsed)) return parsed;
+        const fallback = new Date(dateStr);
+        return isNaN(fallback) ? null : fallback;
+      };
 
-      return activities.filter((activity) => {
-        if (!activity.createTime) return false;
-
-        try {
-          const activityDate = parse(
-            activity.createTime,
-            'yyyy-MM-dd HH:mm:ss',
-            new Date()
-          );
-          return activityDate >= targetDate;
-        } catch {
-          return false;
-        }
-      }).sort((a, b) => {
-        const dateA = new Date(a.createTime);
-        const dateB = new Date(b.createTime);
-        return dateB - dateA; // 降序排列
-      });
+      return activities
+        .map((activity) => {
+          const startDate = parseDateSafely(activity.startTime);
+          const fallbackDate = startDate ? startDate : parseDateSafely(activity.createTime);
+          return { activity, comparisonDate: fallbackDate, startDate };
+        })
+        .filter(({ comparisonDate }) => comparisonDate && comparisonDate >= targetDate)
+        // 优先按 startTime 排序；没有 startTime 的再按 fallback 时间
+        .sort((a, b) => {
+          const dateA = a.startDate || a.comparisonDate;
+          const dateB = b.startDate || b.comparisonDate;
+          return dateA - dateB;
+        })
+        .map(({ activity }) => activity);
     } catch (error) {
       console.error('Error filtering activities:', error);
       return [];
@@ -35,6 +38,8 @@ export const dataProcessor = {
     if (!data || data.length === 0) return [];
 
     const userStats = {};
+    const processedPosts = new Set(); // 用于去重
+    let duplicateCount = 0; // 统计重复数量
 
     data.forEach((item) => {
       const userId = item.userId || item.memberId || '';
@@ -43,6 +48,28 @@ export const dataProcessor = {
       const postTime = item.createTime || '';
       const msg = item.msg || '';
       const riverName = item.riverName || '';
+
+      // 优先使用帖子的唯一ID，如果没有则用组合键去重
+      const postId = item.id || item.postId || '';
+      let postKey;
+
+      if (postId) {
+        // 如果有帖子ID，直接使用
+        postKey = postId.toString();
+      } else {
+        // 否则使用组合键：userId + 时间 + 消息内容的前50字符
+        const msgPreview = msg.substring(0, 50);
+        postKey = `${userId}_${postTime}_${msgPreview}`;
+      }
+
+      // 检查是否已处理过这条帖子
+      if (processedPosts.has(postKey)) {
+        duplicateCount++;
+        return; // 跳过重复的帖子
+      }
+
+      // 标记为已处理
+      processedPosts.add(postKey);
 
       // 使用userId作为唯一标识，如果没有则用nickname
       const key = userId || nickname;
@@ -69,6 +96,12 @@ export const dataProcessor = {
       userStats[key].发帖消息列表.push(msg);
       userStats[key].河流名称列表.push(riverName);
     });
+
+    // 打印去重统计
+    if (duplicateCount > 0) {
+      console.log(`⚠️ 发现并过滤了 ${duplicateCount} 条重复帖子`);
+    }
+    console.log(`✅ 有效帖子数: ${processedPosts.size} 条`);
 
     // 转换为数组并排序
     return Object.values(userStats).sort((a, b) => b.发帖次数 - a.发帖次数);
@@ -235,23 +268,37 @@ export const dataProcessor = {
   // 综合统计用户参与次数
   calculateComprehensiveStats(patrolData, evaluationData, participantsData) {
     const userStats = {};
+    const ensureUser = (id, name, mobile) => {
+      const key = id || mobile || name;
+      if (!key) return null;
+
+      if (!userStats[key]) {
+        userStats[key] = {
+          用户ID: id || '',
+          姓名: name || '未知',
+          手机号: mobile || '',
+          巡护次数: 0,
+          评测次数: 0,
+          活动次数: 0,
+          总次数: 0,
+        };
+      } else {
+        if (!userStats[key].用户ID && id) userStats[key].用户ID = id;
+        if (!userStats[key].姓名 && name) userStats[key].姓名 = name;
+        if (!userStats[key].手机号 && mobile) userStats[key].手机号 = mobile;
+      }
+
+      return userStats[key];
+    };
 
     // 处理巡护数据
     if (patrolData && patrolData.length > 0) {
       const patrolUsers = this.processRiverPatrolUserData(patrolData);
       patrolUsers.forEach((user) => {
-        const username = user.发帖人;
-        if (!userStats[username]) {
-          userStats[username] = {
-            姓名: username,
-            巡护次数: 0,
-            评测次数: 0,
-            活动次数: 0,
-            总次数: 0,
-          };
-        }
-        userStats[username].巡护次数 = user.发帖次数;
-        userStats[username].总次数 += user.发帖次数;
+        const entry = ensureUser(user.用户ID, user.发帖人, user.手机号);
+        if (!entry) return;
+        entry.巡护次数 = user.发帖次数;
+        entry.总次数 += user.发帖次数;
       });
     }
 
@@ -259,36 +306,20 @@ export const dataProcessor = {
     if (evaluationData && evaluationData.length > 0) {
       const evaluationUsers = this.processRiverPatrolUserData(evaluationData);
       evaluationUsers.forEach((user) => {
-        const username = user.发帖人;
-        if (!userStats[username]) {
-          userStats[username] = {
-            姓名: username,
-            巡护次数: 0,
-            评测次数: 0,
-            活动次数: 0,
-            总次数: 0,
-          };
-        }
-        userStats[username].评测次数 = user.发帖次数;
-        userStats[username].总次数 += user.发帖次数;
+        const entry = ensureUser(user.用户ID, user.发帖人, user.手机号);
+        if (!entry) return;
+        entry.评测次数 = user.发帖次数;
+        entry.总次数 += user.发帖次数;
       });
     }
 
     // 处理活动参与数据
     if (participantsData && participantsData.length > 0) {
       participantsData.forEach((participant) => {
-        const username = participant.昵称;
-        if (!userStats[username]) {
-          userStats[username] = {
-            姓名: username,
-            巡护次数: 0,
-            评测次数: 0,
-            活动次数: 0,
-            总次数: 0,
-          };
-        }
-        userStats[username].活动次数 = participant.参与活动数;
-        userStats[username].总次数 += participant.参与活动数;
+        const entry = ensureUser(participant.id, participant.昵称, participant.手机号);
+        if (!entry) return;
+        entry.活动次数 = participant.参与活动数;
+        entry.总次数 += participant.参与活动数;
       });
     }
 

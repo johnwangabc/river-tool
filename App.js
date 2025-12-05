@@ -6,8 +6,6 @@ import { StatusBar } from 'expo-status-bar';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import SettingsScreen from './src/screens/SettingsScreen';
-import ActivityScreen from './src/screens/ActivityScreen';
-import RiverPatrolScreen from './src/screens/RiverPatrolScreen';
 import ComprehensiveScreen from './src/screens/ComprehensiveScreen';
 
 const Tab = createBottomTabNavigator();
@@ -24,10 +22,6 @@ export default function App() {
 
               if (route.name === 'Settings') {
                 iconName = focused ? 'cog' : 'cog-outline';
-              } else if (route.name === 'Activity') {
-                iconName = focused ? 'calendar-check' : 'calendar-check-outline';
-              } else if (route.name === 'RiverPatrol') {
-                iconName = focused ? 'water' : 'water-outline';
               } else if (route.name === 'Comprehensive') {
                 iconName = focused ? 'chart-bar' : 'chart-bar-outline';
               }
@@ -45,22 +39,6 @@ export default function App() {
             },
           })}
         >
-          <Tab.Screen
-            name="Activity"
-            component={ActivityScreen}
-            options={{
-              title: '活动统计',
-              headerTitle: '活动数据统计',
-            }}
-          />
-          <Tab.Screen
-            name="RiverPatrol"
-            component={RiverPatrolScreen}
-            options={{
-              title: '巡护评测',
-              headerTitle: '河流巡护/评测',
-            }}
-          />
           <Tab.Screen
             name="Comprehensive"
             component={ComprehensiveScreen}

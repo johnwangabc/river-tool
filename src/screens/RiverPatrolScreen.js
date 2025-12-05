@@ -58,6 +58,20 @@ export default function RiverPatrolScreen() {
         return;
       }
 
+      // 打印原始数据样本到控制台
+      console.log('\n\n');
+      console.log('🔍🔍🔍🔍🔍 巡护数据样本 - 请复制以下内容 🔍🔍🔍🔍🔍');
+      console.log('========== 开始 ==========');
+      console.log('总数据条数:', allData.length);
+      console.log('\n前3条完整数据:');
+      allData.slice(0, 3).forEach((item, index) => {
+        console.log(`\n--- 第 ${index + 1} 条 ---`);
+        console.log(JSON.stringify(item, null, 2));
+      });
+      console.log('\n========== 结束 ==========');
+      console.log('🔍🔍🔍🔍🔍 请复制上面的内容 🔍🔍🔍🔍🔍');
+      console.log('\n\n');
+
       setProgress('正在处理用户数据...');
 
       // 处理用户数据

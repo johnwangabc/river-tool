@@ -28,6 +28,17 @@ export default function ActivityScreen() {
   const [showData, setShowData] = useState(false);
   const [stats, setStats] = useState(null);
   const [participantsData, setParticipantsData] = useState(null);
+  const logJson = (label, payload, previewCount = 3) => {
+    try {
+      const data =
+        Array.isArray(payload) && payload.length > previewCount
+          ? payload.slice(0, previewCount)
+          : payload;
+      console.log(`${label}:`, JSON.stringify(data, null, 2));
+    } catch {
+      console.log(label, payload);
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!targetDate) {
@@ -92,6 +103,8 @@ export default function ActivityScreen() {
       console.log('参与者数量:', participants.length);
       console.log('basicInfo长度:', basicInfo.length);
       console.log('统计数据:', activityStats);
+      logJson('参与者样本(前3)', participants);
+      logJson('活动基本信息样本(前3)', basicInfo);
 
       // 确保先设置数据，再设置显示状态
       setParticipantsData(participants);
@@ -117,7 +130,7 @@ export default function ActivityScreen() {
   };
 
   const handleExport = async () => {
-    console.log('准备导出参与者数据, participantsData:', participantsData);
+    logJson('准备导出参与者数据(前3)', participantsData);
     console.log('参与者数量:', participantsData ? participantsData.length : 0);
 
     if (!participantsData || participantsData.length === 0) {
